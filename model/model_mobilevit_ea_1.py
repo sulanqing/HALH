@@ -1,8 +1,3 @@
-"""
-original code from apple:
-https://github.com/apple/ml-cvnets/blob/main/cvnets/models/classification/mobilevit.py
-"""
-
 from typing import Optional, Tuple, Union, Dict
 import math
 import torch
@@ -24,48 +19,16 @@ def make_divisible(
         divisor: Optional[int] = 8,
         min_value: Optional[Union[float, int]] = None,
 ) -> Union[float, int]:
-    """
-    This function is taken from the original tf repo.
-    It ensures that all layers have a channel number that is divisible by 8
-    It can be seen here:
-    https://github.com/tensorflow/models/blob/master/research/slim/nets/mobilenet/mobilenet.py
-    :param v:
-    :param divisor:
-    :param min_value:
-    :return:
-    """
+    
     if min_value is None:
         min_value = divisor
     new_v = max(min_value, int(v + divisor / 2) // divisor * divisor)
-    # Make sure that round down does not go down by more than 10%.
     if new_v < 0.9 * v:
         new_v += divisor
     return new_v
 
 
 class ConvLayer(nn.Module):
-    """
-    Applies a 2D convolution over an input
-
-    Args:
-        in_channels (int): :math:`C_{in}` from an expected input of size :math:`(N, C_{in}, H_{in}, W_{in})`
-        out_channels (int): :math:`C_{out}` from an expected output of size :math:`(N, C_{out}, H_{out}, W_{out})`
-        kernel_size (Union[int, Tuple[int, int]]): Kernel size for convolution.
-        stride (Union[int, Tuple[int, int]]): Stride for convolution. Default: 1
-        groups (Optional[int]): Number of groups in convolution. Default: 1
-        bias (Optional[bool]): Use bias. Default: ``False``
-        use_norm (Optional[bool]): Use normalization layer after convolution. Default: ``True``
-        use_act (Optional[bool]): Use activation layer after convolution (or convolution and normalization).
-                                Default: ``True``
-
-    Shape:
-        - Input: :math:`(N, C_{in}, H_{in}, W_{in})`
-        - Output: :math:`(N, C_{out}, H_{out}, W_{out})`
-
-    .. note::
-        For depth-wise convolution, `groups=C_{in}=C_{out}`.
-    """
-
     def __init__(
             self,
             in_channels: int,
@@ -122,25 +85,6 @@ class ConvLayer(nn.Module):
 
 
 class InvertedResidual(nn.Module):
-    """
-    This class implements the inverted residual block, as described in `MobileNetv2 <https://arxiv.org/abs/1801.04381>`_ paper
-
-    Args:
-        in_channels (int): :math:`C_{in}` from an expected input of size :math:`(N, C_{in}, H_{in}, W_{in})`
-        out_channels (int): :math:`C_{out}` from an expected output of size :math:`(N, C_{out}, H_{out}, W_{out)`
-        stride (int): Use convolutions with a stride. Default: 1
-        expand_ratio (Union[int, float]): Expand the input channels by this factor in depth-wise conv
-        skip_connection (Optional[bool]): Use skip-connection. Default: True
-
-    Shape:
-        - Input: :math:`(N, C_{in}, H_{in}, W_{in})`
-        - Output: :math:`(N, C_{out}, H_{out}, W_{out})`
-
-    .. note::
-        If `in_channels =! out_channels` and `stride > 1`, we set `skip_connection=False`
-
-    """
-
     def __init__(
             self,
             in_channels: int,
@@ -204,26 +148,6 @@ class InvertedResidual(nn.Module):
 
 
 class MobileViTBlock(nn.Module):
-    """
-    This class defines the `MobileViT block <https://arxiv.org/abs/2110.02178?context=cs.LG>`_
-
-    Args:
-        opts: command line arguments
-        in_channels (int): :math:`C_{in}` from an expected input of size :math:`(N, C_{in}, H, W)`
-        transformer_dim (int): Input dimension to the transformer unit
-        ffn_dim (int): Dimension of the FFN block
-        n_transformer_blocks (int): Number of transformer blocks. Default: 2
-        head_dim (int): Head dimension in the multi-head attention. Default: 32
-        attn_dropout (float): Dropout in multi-head attention. Default: 0.0
-        dropout (float): Dropout rate. Default: 0.0
-        ffn_dropout (float): Dropout between FFN layers in transformer. Default: 0.0
-        patch_h (int): Patch height for unfolding operation. Default: 8
-        patch_w (int): Patch width for unfolding operation. Default: 8
-        transformer_norm_layer (Optional[str]): Normalization layer in the transformer block. Default: layer_norm
-        conv_ksize (int): Kernel size to learn local representations in MobileViT block. Default: 3
-        no_fusion (Optional[bool]): Do not combine the input and output feature maps. Default: False
-    """
-
     def __init__(
             self,
             in_channels: int,
@@ -318,11 +242,9 @@ class MobileViTBlock(nn.Module):
 
         interpolate = False
         if new_w != orig_w or new_h != orig_h:
-            # Note: Padding can be done, but then it needs to be handled in attention function.
             x = F.interpolate(x, size=(new_h, new_w), mode="bilinear", align_corners=False)
             interpolate = True
 
-        # number of patches along width and height
         num_patch_w = new_w // patch_w  # n_w
         num_patch_h = new_h // patch_h  # n_h
         num_patches = num_patch_h * num_patch_w  # N
@@ -382,13 +304,9 @@ class MobileViTBlock(nn.Module):
 
     def forward(self, x: Tensor) -> Tensor:
         res = x
-
         fm = self.local_rep(x)
-
-        # convert feature map to patches
         patches, info_dict = self.unfolding(fm)
 
-        # learn global representations
         for transformer_layer in self.global_rep:
             patches = transformer_layer(patches)
 
@@ -402,10 +320,6 @@ class MobileViTBlock(nn.Module):
 
 
 class External_attention(nn.Module):
-    '''
-    Arguments:
-        c (int): The input and output channel number. 官方的代码中设为512
-    '''
 
     def __init__(self, c):
         super(External_attention, self).__init__()
@@ -433,22 +347,17 @@ class External_attention(nn.Module):
                     m.bias.data.zero_()
 
     def forward(self, x):
-        idn = x  # (128,640,7,7)
+        idn = x 
         x = self.conv1(x)
 
         b, c, h, w = x.size()
         n = h * w
-        x = x.view(b, c, h * w)  # (128,640,49)# b * c * n
-
-        attn = self.linear_0(x)  # b, k, n  (128,640,49)
-        # linear_0是第一个memory unit
+        x = x.view(b, c, h * w)  
+        attn = self.linear_0(x)  
         attn = F.softmax(attn, dim=-1)  # b, k, n
-
         attn = attn / (1e-9 + attn.sum(dim=1, keepdim=True))  # # b, k, n
-
         x = self.linear_1(attn)  # b, c, n
-        # linear_1是第二个memory unit
-        x = x.view(b, c, h, w)  # (128, 640, 7, 7)
+        x = x.view(b, c, h, w)  
         x = self.conv2(x)
         x = x + idn
         x = F.relu(x)
@@ -456,10 +365,6 @@ class External_attention(nn.Module):
 
 
 class MobileViT(nn.Module):
-    """
-    This class implements the `MobileViT architecture <https://arxiv.org/abs/2110.02178?context=cs.LG>`_
-    """
-
     def __init__(self, model_cfg: Dict, num_classes: int = 1000):
         super().__init__()
 
@@ -504,20 +409,14 @@ class MobileViT(nn.Module):
             self.classifier.add_module(name="dropout", module=nn.Dropout(p=model_cfg["cls_dropout"]))
         self.classifier.add_module(name="fc", module=nn.Linear(in_features=640, out_features=num_classes))
 
-        # weight init
         self.apply(self.init_parameters)
         self.tanh = nn.Tanh()
         self.relu = nn.ReLU()
-        # self.layer_6 = nn.Linear(num_classes, 21)
-        # self.layer_6 = nn.Linear(num_classes, 10)
         self.conv1x1 = nn.Conv2d(in_channels=128, out_channels=160, kernel_size=1)
 
         self.hash_layer = nn.Sequential(
             nn.Dropout(),
             nn.Linear(640 * 4 * 4, 70),
-            # nn.ReLU(),
-            # nn.Dropout(),
-            # nn.Linear(100, 50),
             nn.ReLU(),
             nn.Linear(70, num_classes),
         )
@@ -615,91 +514,33 @@ class MobileViT(nn.Module):
         x = self.conv_1(x)
         x = self.layer_1(x)
         x = self.layer_2(x)
-
-        x = self.layer_3(x)  # （128,96,28,28）
-        x = self.layer_4(x)  # (128,128,14,14)
-        # x = self.conv1x1(x)
-        x = self.layer_5(x)  # (128,160,7,7)
+        x = self.layer_3(x)  
+        x = self.layer_4(x)  
+        x = self.layer_5(x) 
         x = self.layer_6(x)
-        x = self.conv_1x1_exp(x)  # (128,640,7,7)
-        e = self.ea(x)  # (128,640,7,7)   (128,160,7,7)
-        e = torch.flatten(e, start_dim=1)  # (128,31360)  (128,7840)
-        x = self.classifier(x)  # (128,12)
-        e = self.hash_layer(e) #(128,12)
-        # e=self.hash_ea(e)  #(128,12)
+        x = self.conv_1x1_exp(x) 
+        e = self.ea(x)  
+        e = torch.flatten(e, start_dim=1)  
+        x = self.classifier(x)  
+        e = self.hash_layer(e)
         all = x + e
-        # all1 = self.relu(all)
         y = self.tanh(all)
-        # x = self.relu()
-        # x = self.layer_6(all)
         return y
-        # return y, x
-
-
-
-    #1.10
-    # def forward(self, x: Tensor) -> Tensor:
-    #     x = self.conv_1(x)
-    #     x = self.layer_1(x)
-    #     x = self.layer_2(x)
-    #
-    #     x = self.layer_3(x)  # （128,96,28,28）
-    #     x = self.layer_4(x)  # (128,128,14,14)
-    #     x = self.layer_5(x)  # (128,160,7,7)
-    #     x = self.layer_5(x)
-    #     x = self.conv_1x1_exp(x)  # (128,640,7,7)
-    #     e = self.ea(x)  # (128,640,7,7)   (128,160,7,7)
-    #     e = torch.flatten(e, start_dim=1)  # (128,31360)  (128,7840)
-    #     x = self.classifier(x)  # (128,12)
-    #     e = self.hash_layer(e) #(128,12)
-    #     # e=self.hash_ea(e)  #(128,12)
-    #     all = x + e
-    #     # all1 = self.relu(all)
-    #     y = self.tanh(all)
-    #     # x = self.relu()
-    #     # x = self.layer_6(all)
-    #     return y
-    #     # return y, x
-
-
-
-    # def forward(self, x: Tensor) -> Tensor:
-    #     x = self.conv_1(x)
-    #     x = self.layer_1(x)
-    #     x = self.layer_2(x)
-    #
-    #     x = self.layer_3(x)
-    #     x = self.layer_4(x) #(128,128,14,14)
-    #     x = self.layer_5(x)  # (128,160,7,7)
-    #     x = self.conv_1x1_exp(x)  # (128,640,7,7)
-    #     x = self.ea(x)# (128,640,7,7)
-    #     x = self.classifier(x)
-    #     y = self.tanh(x)
-    #     # x = self.relu()
-    #     x = self.layer_6(x)
-    #
-    #     return  y,x
 
 
 def mobile_vit_xx_small(num_classes: int = 1000):
-    # pretrain weight link
-    # https://docs-assets.developer.apple.com/ml-research/models/cvnets/classification/mobilevit_xxs.pt
     config = get_config("xx_small")
     m = MobileViT(config, num_classes=num_classes)
     return m
 
 
 def mobile_vit_x_small(num_classes: int = 1000):
-    # pretrain weight link
-    # https://docs-assets.developer.apple.com/ml-research/models/cvnets/classification/mobilevit_xs.pt
     config = get_config("x_small")
     m = MobileViT(config, num_classes=num_classes)
     return m
 
 
 def mobile_vit_small(num_classes: int = 1000):
-    # pretrain weight link
-    # https://docs-assets.developer.apple.com/ml-research/models/cvnets/classification/mobilevit_s.pt
     config = get_config("small")
     m = MobileViT(config, num_classes=num_classes)
     return m
@@ -709,7 +550,6 @@ if __name__ == '__main__':
     input = torch.randn(1, 3, 224, 224)
     model = mobile_vit_small()
     out = model(input)
-    # 使用thop.profile（）工具，进行参数统计
     flops, params = profile(model, inputs=(input,))
     print("params:{:.3f}M".format(params / 1e6))
     print("flops:{:.3f}M".format(flops / 1e6))
