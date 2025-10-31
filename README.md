@@ -1,7 +1,7 @@
 # HALH
 A Lightweight Image Hashing Retrieval Method Based on Hybrid Neural Networks and Asymmetric Learning
 
-<img src="model.png" alt="ViT_SIR" style="width: 70%;"/>
+<img src="model.png" alt="ViT_SIR" style="width: 90%;"/>
 
 # Installation
 pip install -r requirements.txt
