@@ -1,10 +1,7 @@
 """
-test.py
-------------------------------------------
 输出指标：
 - Rank-1 / Rank-5
-- mAP
-------------------------------------------
+- mAP 
 """
 
 import os
@@ -14,9 +11,6 @@ from tqdm import tqdm
 from model_mobilevit_ea_1 import mobile_vit_small as create_model
 from data.data_loader import load_data
 
-# ==============================
-# 配置参数
-# ==============================
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 dataset = "cifar-10"
 root = "data/data-cifar10"  # 替换成实际数据集路径
@@ -25,28 +19,21 @@ num_train = 5000
 batch_size = 64
 num_workers = 4
 code_length = 48
-model_path = "checkpoints/model_weights_48_0.98275.pth"   # 加载模型权重
+model_path = "checkpoints/model_weights_xx_xxxx.pth"   # 替换成实际模型权重
 
-# ==============================
-# 加载数据
-# ==============================
+
 print("加载数据中 ...")
 query_dataloader, _, retrieval_dataloader = load_data(
     dataset, root, num_query, num_train, batch_size, num_workers
 )
 
-# ==============================
-# 加载模型
-# ==============================
+
 print(f"加载模型权重: {model_path}")
 model = create_model(num_classes=code_length).to(device)
 state_dict = torch.load(model_path, map_location=device)
 model.load_state_dict(state_dict, strict=True)
 model.eval()
 
-# ==============================
-# 哈希码生成函数
-# ==============================
 def generate_code(model, dataloader, code_length, device):
     model.eval()
     code = torch.zeros([len(dataloader.dataset), code_length])
@@ -57,10 +44,6 @@ def generate_code(model, dataloader, code_length, device):
             code[index, :] = hash_code.sign().cpu()
     return code
 
-
-# ==============================
-# 检索指标计算函数
-# ==============================
 def evaluate_metrics(query_code, query_targets, retrieval_code, retrieval_targets, Ks=[1,5]):
     query_code = query_code.to(device)
     retrieval_code = retrieval_code.to(device)
@@ -124,9 +107,6 @@ def evaluate_metrics(query_code, query_targets, retrieval_code, retrieval_target
     return results
 
 
-# ==============================
-# 主流程
-# ==============================
 print("生成 query / retrieval 哈希码 ...")
 query_code = generate_code(model, query_dataloader, code_length, device)
 retrieval_code = generate_code(model, retrieval_dataloader, code_length, device)
