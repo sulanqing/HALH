@@ -5,14 +5,8 @@ A Lightweight Image Hashing Retrieval Method Based on Hybrid Neural Networks and
 pip install -r requirements.txt
 # Train
 python train.py  \
-eg.python train.py --dataset cifar-10 \
-                --root ./data/data-cifar10 \
-                --batch-size 64 \
-                --lr 0.0005 \
-                --code-length 32 \
-                --max-epoch 5 \
-                --gpu 0
+eg.python train.py --dataset cifar-10 --batch-size 64 --lr 0.0005 --code-length 32 --max-epoch 5 --gpu 0
 # Test
-python test.py 
+python test.py \
 eg.python test.py 
 
